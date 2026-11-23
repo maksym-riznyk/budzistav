@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="uk" data-demo>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Порівняння цін і наявності будматеріалів у магазинах України. Інтерактивний каталог БудЗістав.">
+  <title>БудЗістав — Порівняння будматеріалів</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a href="./" class="brand"><span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span><span>БудЗістав<small>Закупівлі будматеріалів</small></span></a>
+      <nav aria-label="Розділи">
+        <button type="button" id="catalog-tab" aria-current="page"><span class="nav-glyph" aria-hidden="true">▤</span> Порівняння</button>
+        <button type="button" id="sources-tab"><span class="nav-glyph" aria-hidden="true">▥</span> Джерела <span class="nav-count" id="nav-count"></span></button>
+      </nav>
+      <button type="button" id="cli-open" class="cli-open local-only" aria-haspopup="dialog">
+        <span class="cli-icon" aria-hidden="true">&gt;_</span>
+        <span class="cli-label">Локальний ШІ
+          <small><span class="connection-dot" aria-hidden="true"></span><span id="cli-status">Вимкнено</span></small>
+        </span>
+      </button>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div><h1 id="title">Порівняння товарів</h1><p class="demo-label">Демо · збережені ціни й наявність</p></div>
+        <div class="actions">
+          <a class="button secondary" id="download" href="/api/export"><span aria-hidden="true">↓</span> Експорт CSV</a>
+          <button type="button" id="product-new" class="button primary local-only"><span aria-hidden="true">+</span> Додати товар</button>
+          <button type="button" id="source-new" class="button primary local-only" hidden><span aria-hidden="true">+</span> Додати джерело</button>
+        </div>
+      </header>
+      <p id="notice" class="notice" role="status" hidden></p>
+
+      <section id="catalog-page" aria-label="Каталог">
+        <div class="catalog-tools">
+          <div class="search-wrap"><span aria-hidden="true" class="search-icon"></span><input type="search" id="search" placeholder="Назва, артикул або виробник" aria-label="Пошук товарів" autocomplete="off"></div>
+          <button class="button primary local-only" id="web-search" type="button">Шукати в усіх магазинах</button>
+          <select id="source-filter" aria-label="Постачальник"><option value="">Усі джерела</option></select>
+          <label class="stock-filter"><input id="stock-filter" type="checkbox"> В наявності</label>
+        </div>
+        <div class="categories" id="categories" aria-label="Категорії"></div>
+        <div class="workbench">
+          <section id="catalog-list" class="catalog-panel" aria-label="Список товарів">
+            <div class="panel-bar catalog-bar">
+              <div class="catalog-heading"><h2>Каталог</h2><span id="product-count"></span></div>
+            </div>
+            <div class="table-head"><span>Товар</span><span>Пропозиції</span><span>Ціна від</span></div>
+            <div id="products" class="products"></div>
+            <nav id="pagination" class="pagination" aria-label="Сторінки каталогу" hidden></nav>
+          </section>
+          <div class="detail-column">
+            <div class="detail-nav"><button type="button" id="catalog-back" class="button secondary">← До каталогу</button></div>
+            <section id="product-detail" class="product-detail" aria-label="Пропозиції товару"></section>
+          </div>
+        </div>
+      </section>
+
+      <section id="sources-page" aria-label="Джерела" hidden>
+        <section class="source-panel">
+          <div class="panel-bar"><h2>Постачальники</h2><div class="actions local-only">
+            <a href="/api/template" class="subtle-link">Шаблон CSV</a>
+            <button type="button" id="sources-refresh" class="button secondary">Оновити всі</button>
+            <button type="button" id="catalog-open" class="button primary">Масовий збір</button>
+          </div></div>
+          <div id="sources"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="store-dialog" aria-labelledby="store-title">
+    <div class="dialog-head"><h2 id="store-title">Пошук у всіх магазинах</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <form id="store-form">
+      <div class="search-line"><input type="search" name="query" aria-label="Пошуковий запит" maxlength="240" placeholder="Наприклад, Ceresit CM 11 Plus 25 кг" required autofocus><button type="submit" class="button primary">Знайти</button></div>
+    </form>
+    <div id="store-results" aria-live="polite"></div>
+  </dialog>
+
+  <dialog id="description-dialog" aria-labelledby="description-title">
+    <div class="dialog-head"><h2 id="description-title"></h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <div id="description-content"></div>
+  </dialog>
+
+  <dialog id="photo-dialog" aria-labelledby="photo-title">
+    <div class="dialog-head"><h2 id="photo-title"></h2><button type="button" data-close aria-label="Закрити" class="plain close" autofocus>×</button></div>
+    <div id="photo-content"></div>
+  </dialog>
+
+  <dialog id="availability-dialog" class="wide-dialog" aria-labelledby="availability-title">
+    <div class="dialog-head"><h2 id="availability-title">Оновлення наявності</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <div id="availability-report" class="web-results" aria-live="polite"></div>
+  </dialog>
+
+  <dialog id="catalog-dialog" class="wide-dialog" aria-labelledby="catalog-title">
+    <div class="dialog-head"><h2 id="catalog-title">Масовий збір</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <form id="catalog-form">
+      <label>Кількість нових товарів<input name="count" type="number" min="1" max="1500" value="800" required></label>
+      <p id="catalog-error" class="form-error" role="alert" hidden></p>
+      <footer class="dialog-actions"><button type="submit" class="button primary">Почати збір</button></footer>
+    </form>
+    <div id="catalog-progress" class="web-results" aria-live="polite"></div>
+  </dialog>
+
+  <dialog id="product-dialog" aria-labelledby="product-title">
+    <div class="dialog-head"><h2 id="product-title">Додати товар</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <form id="product-form">
+      <label>Посилання на картку товару<input name="url" type="url" maxlength="1600" placeholder="https://магазин.ua/товар" required></label>
+      <p class="form-error" id="product-error" role="alert" hidden></p>
+      <footer class="dialog-actions"><button type="button" data-close class="button secondary">Скасувати</button><button type="submit" id="product-submit" class="button primary">Зібрати товар</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="source-dialog" aria-labelledby="source-title">
+    <div class="dialog-head"><h2 id="source-title">Додати джерело</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <form id="source-form">
+      <div class="form-grid">
+        <label>Назва постачальника<input name="name" required maxlength="100" placeholder="Назва магазину"></label>
+        <label>Тип джерела<select name="kind"><option value="web">Сайт або фід</option><option value="csv">Файл CSV</option></select></label>
+      </div>
+      <label id="url-field">Посилання<input name="url" type="url" maxlength="1600" placeholder="https://магазин.ua"></label>
+      <div id="file-field" hidden>
+        <label>Прайс<input name="file" type="file" accept=".csv,text/csv"></label>
+        <a href="/api/template" class="subtle-link">Завантажити шаблон</a>
+      </div>
+      <details id="recipe-fields">
+        <summary>Правила збору</summary>
+        <div class="form-grid">
+          <label>Шлях карток<input name="prefix" placeholder="/products/" maxlength="120"></label>
+          <label>Карток за оновлення<input name="limit" type="number" min="1" max="60" value="24" required></label>
+        </div>
+        <div class="form-grid">
+          <label>Одиниця ціни за замовчуванням<select name="defaultUnit"><option value="">Зі сторінки</option></select></label>
+          <label>Обсяг за ціною<input name="defaultPack" type="number" min="0.001" max="100000" step="any" placeholder="1"></label>
+          <label>Валюта за замовчуванням<select name="defaultCurrency"><option value="">Зі сторінки</option><option>UAH</option><option>EUR</option><option>USD</option><option>PLN</option></select></label>
+          <label class="check-field"><input name="titleWeight" type="checkbox"> Ціна за упаковку, вага з назви</label>
+        </div>
+        <div><label>Додаткові картки товарів<textarea name="productPages" rows="2" maxlength="16000" placeholder="Одне посилання в рядку"></textarea></label></div>
+        <div class="selector-grid" id="selectors"></div>
+      </details>
+      <p class="form-error" id="source-error" role="alert" hidden></p>
+      <footer class="dialog-actions"><button type="button" data-close class="button secondary">Скасувати</button><button type="submit" id="source-submit" class="button primary">Додати джерело</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="cli-dialog" aria-labelledby="cli-title">
+    <div class="dialog-head"><h2 id="cli-title">Підключення ШІ</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <form id="cli-form">
+      <label>Локальна CLI<select name="provider"><option value="off">Вимкнено</option><option value="codex">Codex CLI</option><option value="claude">Claude Code</option></select></label>
+      <div id="cli-probes" class="cli-probes" aria-live="polite"></div>
+      <p class="form-error" id="cli-error" role="alert" hidden></p>
+      <footer class="dialog-actions"><button type="button" id="check-cli" class="button secondary">Перевірити вхід</button><button type="submit" class="button primary">Зберегти</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="compare-dialog" class="wide-dialog" aria-labelledby="compare-title">
+    <div class="dialog-head"><h2 id="compare-title">Порівняти аналоги</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <div id="comparison"></div>
+  </dialog>
+
+  <dialog id="web-dialog" class="wide-dialog" aria-labelledby="web-title">
+    <div class="dialog-head"><h2 id="web-title">Пошук у мережі</h2><button type="button" data-close aria-label="Закрити" class="plain close">×</button></div>
+    <form id="web-form">
+      <div class="search-line"><input type="search" name="query" aria-label="Пошуковий запит" maxlength="280" placeholder="Назва, розмір або артикул" required><button type="submit" class="button primary">Знайти</button></div>
+    </form>
+    <div id="web-results" class="web-results" aria-live="polite"></div>
+  </dialog>
+</body>
+</html>
